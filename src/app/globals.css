@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #F8FAFC;
+    --foreground: #0F172A;
+    --card: #FFFFFF;
+    --card-foreground: #0F172A;
+    --card-elevated: #F1F5F9;
+    --primary: #059669;
+    --primary-foreground: #FFFFFF;
+    --primary-hover: #047857;
+    --muted: #F1F5F9;
+    --muted-foreground: #64748B;
+    --accent: #F1F5F9;
+    --accent-foreground: #0F172A;
+    --border: #E2E8F0;
+    --input: #E2E8F0;
+    --ring: #10B981;
+    --radius: 0.75rem;
+
+    --success: #059669;
+    --success-foreground: #FFFFFF;
+    --success-light: #ECFDF5;
+
+    --warning: #D97706;
+    --warning-foreground: #FFFFFF;
+    --warning-light: #FFFBEB;
+
+    --danger: #DC2626;
+    --danger-foreground: #FFFFFF;
+    --danger-light: #FEF2F2;
+
+    --info: #0284C7;
+    --info-foreground: #FFFFFF;
+    --info-light: #F0F9FF;
+  }
+
+  .dark {
+    --background: #09090B;
+    --foreground: #F8FAFC;
+    --card: #111113;
+    --card-foreground: #F8FAFC;
+    --card-elevated: #18181B;
+    --primary: #10B981;
+    --primary-foreground: #064E3B;
+    --primary-hover: #34D399;
+    --muted: #18181B;
+    --muted-foreground: #A1A1AA;
+    --accent: #1F2937;
+    --accent-foreground: #F8FAFC;
+    --border: #27272A;
+    --input: #27272A;
+    --ring: #10B981;
+
+    --success: #10B981;
+    --success-foreground: #064E3B;
+    --success-light: rgba(16, 185, 129, 0.15);
+
+    --warning: #F59E0B;
+    --warning-foreground: #78350F;
+    --warning-light: rgba(245, 158, 11, 0.15);
+
+    --danger: #EF4444;
+    --danger-foreground: #7F1D1D;
+    --danger-light: rgba(239, 68, 68, 0.15);
+
+    --info: #38BDF8;
+    --info-foreground: #075985;
+    --info-light: rgba(56, 189, 248, 0.15);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Selection highlight */
+::selection {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--primary);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Glassmorphism & Subtle Effects */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+}
+
+.dark .glass-panel {
+  background: rgba(17, 17, 19, 0.75);
+  backdrop-filter: blur(12px);
+}
+
+/* Subtle transitions for buttons and cards */
+.interactive-card {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.interactive-card:hover {
+  transform: translateY(-2px);
+}
