@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCustomers, getUsers, isMongoConnected, memoryStore } from "@/lib/db";
+import { getCustomers, getUsers, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Customer, AuditLog } from "@/lib/models";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    await connectDB();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
 
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await connectDB();
     const currentUser = await getCurrentUser();
     const body = await req.json();
 

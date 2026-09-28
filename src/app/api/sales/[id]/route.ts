@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isMongoConnected, memoryStore } from "@/lib/db";
+import { connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Sale, AuditLog } from "@/lib/models";
 import { getCurrentUser } from "@/lib/auth";
 import { createNcmOrder } from "@/lib/ncm";
@@ -7,12 +7,13 @@ import { calculateAndSaveCommissionForSale } from "@/lib/commission-engine";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     const { id } = await params;
     const body = await req.json();
     const currentUser = await getCurrentUser();
 
     if (isMongoConnected()) {
-      const sale = await Sale.findById(id);
+      const sale = await Sale.findById(id) || await Sale.findOne({ saleId: id });
       if (!sale) return NextResponse.json({ error: "Sale not found" }, { status: 404 });
 
       const oldStatus = sale.status;
@@ -44,6 +45,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           sale.ncmOrderId = String(ncmResult.orderid);
           sale.ncmStatus = "Pickup Order Created";
           sale.status = "SHIPPED";
+        } else if (ncmResult.error) {
+          const errText = String(ncmResult.error);
+          sale.ncmStatus = errText.toLowerCase().includes("token")
+            ? "NCM Token Invalid - Set valid token in NCM Settings"
+            : `Failed: ${errText}`;
         }
       }
 
@@ -103,11 +109,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     const { id } = await params;
     const currentUser = await getCurrentUser();
 
     if (isMongoConnected()) {
-      const sale = await Sale.findById(id);
+      const sale = await Sale.findById(id) || await Sale.findOne({ saleId: id });
       if (!sale) return NextResponse.json({ error: "Sale not found" }, { status: 404 });
 
       sale.status = "CANCELLED";

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isMongoConnected, memoryStore } from "@/lib/db";
+import { connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { User, AuditLog } from "@/lib/models";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     const { id } = await params;
     const body = await req.json();
     const currentUser = await getCurrentUser();
@@ -74,6 +75,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     const { id } = await params;
     const currentUser = await getCurrentUser();
 

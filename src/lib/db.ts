@@ -50,19 +50,28 @@ export const memoryStore: {
 };
 
 export async function connectDB() {
-  if (isConnected) return;
+  if (mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return;
+  }
 
   if (MONGODB_URI) {
     try {
-      await mongoose.connect(MONGODB_URI, {
-        bufferCommands: false,
-      });
-      isConnected = true;
-      console.log("Connected to MongoDB Atlas");
-      await seedAllMongoCollections();
-      return;
+      if (mongoose.connection.readyState === 0) {
+        await mongoose.connect(MONGODB_URI, {
+          bufferCommands: false,
+          serverSelectionTimeoutMS: 10000,
+        });
+      }
+      if (mongoose.connection.readyState === 1) {
+        isConnected = true;
+        console.log("Connected to MongoDB Atlas");
+        await seedAllMongoCollections();
+        return;
+      }
     } catch (error) {
       console.warn("MongoDB connection failed, falling back to Memory Store mode:", error);
+      isConnected = false;
     }
   }
 
@@ -74,7 +83,7 @@ export async function connectDB() {
 
 // Check if database is using real Mongoose or Memory Fallback
 export function isMongoConnected() {
-  return isConnected && mongoose.connection.readyState === 1;
+  return mongoose.connection.readyState === 1;
 }
 
 export async function seedAllMongoCollections(force = false) {

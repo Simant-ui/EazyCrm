@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSales, getUsers, getCustomers, isMongoConnected, memoryStore } from "@/lib/db";
+import { getSales, getUsers, getCustomers, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Sale, Customer, AuditLog } from "@/lib/models";
 import { calculateCommission } from "@/lib/business";
 import { getCurrentUser } from "@/lib/auth";
@@ -7,6 +7,7 @@ import { createNcmOrder } from "@/lib/ncm";
 
 export async function GET(req: NextRequest) {
   try {
+    await connectDB();
     const currentUser = await getCurrentUser();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await connectDB();
     const currentUser = await getCurrentUser();
     const body = await req.json();
 

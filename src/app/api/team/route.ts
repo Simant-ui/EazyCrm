@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUsers, isMongoConnected, memoryStore } from "@/lib/db";
+import { getUsers, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { User, AuditLog } from "@/lib/models";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -14,6 +14,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await connectDB();
     const currentUser = await getCurrentUser();
     const body = await req.json();
 
@@ -33,11 +34,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Name, email, and mobile are required" }, { status: 400 });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanMobile = mobile.trim();
+
     const userData = {
-      name,
-      email,
-      mobile,
-      password,
+      name: name.trim(),
+      email: cleanEmail,
+      mobile: cleanMobile,
+      password: password.trim(),
       role,
       department,
       status,
@@ -49,6 +53,11 @@ export async function POST(req: NextRequest) {
     };
 
     if (isMongoConnected()) {
+      const existing = await User.findOne({ email: cleanEmail });
+      if (existing) {
+        return NextResponse.json({ error: `A user with email '${cleanEmail}' already exists.` }, { status: 400 });
+      }
+
       const newUser = await User.create(userData);
       await AuditLog.create({
         userId: currentUser.id,
@@ -61,6 +70,11 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json({ success: true, user: newUser });
     } else {
+      const existing = memoryStore.users.find((u: any) => u.email.toLowerCase() === cleanEmail);
+      if (existing) {
+        return NextResponse.json({ error: `A user with email '${cleanEmail}' already exists.` }, { status: 400 });
+      }
+
       const userWithId = { _id: `user_${Date.now()}`, ...userData };
       memoryStore.users.push(userWithId);
       memoryStore.auditLogs.unshift({

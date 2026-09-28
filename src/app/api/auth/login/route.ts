@@ -17,12 +17,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Match user by email, name (username), or mobile number
+    // Match user by email, admin username, name, or mobile number
     const user = users.find((u: any) => {
       const uEmail = (u.email || "").trim().toLowerCase();
       const uName = (u.name || "").trim().toLowerCase();
       const uMobile = (u.mobile || "").trim();
-      return uEmail === inputKey || uName === inputKey || uMobile === inputKey;
+      const uRole = (u.role || "").trim().toUpperCase();
+
+      if (inputKey === "admin" && (uRole === "ADMIN" || uEmail.startsWith("admin"))) {
+        return true;
+      }
+
+      return (
+        uEmail === inputKey ||
+        uName === inputKey ||
+        uMobile === inputKey ||
+        uName.startsWith(inputKey)
+      );
     });
 
     if (!user) {

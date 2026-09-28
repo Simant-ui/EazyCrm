@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchUser = async (email: string) => {
     try {
       setLoading(true);
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/switch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

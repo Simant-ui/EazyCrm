@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProducts, isMongoConnected, memoryStore } from "@/lib/db";
+import { getProducts, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Product, AuditLog } from "@/lib/models";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await connectDB();
     const currentUser = await getCurrentUser();
     const body = await req.json();
 
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    await connectDB();
     const currentUser = await getCurrentUser();
     const body = await req.json();
     const { _id, ...updateData } = body;
