@@ -84,16 +84,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setUser(data.user);
         toast.success(`Switched account to ${data.user.name} (${data.user.role})`);
         window.location.reload();
       } else {
-        toast.error("Failed to switch user account");
+        toast.error(data.error || "Failed to switch user account");
       }
-    } catch (error) {
-      toast.error("Error switching user account");
+    } catch (error: any) {
+      toast.error(error.message || "Error switching user account");
     } finally {
       setLoading(false);
     }

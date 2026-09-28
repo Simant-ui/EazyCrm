@@ -1,23 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUsers } from "@/lib/db";
+import { getUsers, connectDB } from "@/lib/db";
 import { createSessionToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, userId } = await req.json();
+    await connectDB();
+    const { email, userId, role } = await req.json();
     const users = await getUsers();
 
-    const inputKey = (email || userId || "").trim().toLowerCase();
+    const inputKey = (email || userId || role || "").trim().toLowerCase();
 
-    const user = users.find((u: any) => {
+    let user = users.find((u: any) => {
       const uEmail = (u.email || "").trim().toLowerCase();
       const uId = String(u._id || "").trim().toLowerCase();
       const uName = (u.name || "").trim().toLowerCase();
-      return uEmail === inputKey || uId === inputKey || uName === inputKey;
+      const uRole = (u.role || "").trim().toLowerCase();
+      return (
+        uEmail === inputKey ||
+        uId === inputKey ||
+        uName === inputKey ||
+        uRole === inputKey ||
+        uName.startsWith(inputKey)
+      );
     });
 
+    if (!user && (inputKey.includes("admin") || inputKey.includes("executive") || inputKey.includes("manager"))) {
+      user = users.find((u: any) => (u.role || "").toLowerCase().includes(inputKey));
+    }
+
     if (!user) {
-      return NextResponse.json({ error: "User account not found" }, { status: 404 });
+      return NextResponse.json({ error: `User account '${inputKey}' not found` }, { status: 404 });
     }
 
     const sessionUser = {
