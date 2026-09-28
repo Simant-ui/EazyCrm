@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Test branches fetching with new config
-    const branches = await fetchNcmBranches(updated.apiToken, updated.baseUrl);
+    const branches = await fetchNcmBranches();
 
     return NextResponse.json({
       success: true,

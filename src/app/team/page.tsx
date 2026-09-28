@@ -17,9 +17,28 @@ import {
   Building,
   Shield,
   Search,
+  CheckSquare,
+  Square,
+  Award,
 } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 import { toast } from "sonner";
+import { ModuleName } from "@/lib/permissions";
+
+const ALL_MODULES: { id: ModuleName; label: string }[] = [
+  { id: "dashboard", label: "Dashboard Analytics" },
+  { id: "sales", label: "Sales & Orders" },
+  { id: "customers", label: "Customers CRM" },
+  { id: "leads", label: "Leads CRM" },
+  { id: "products", label: "Products Catalog" },
+  { id: "ncm", label: "Nepal Can Move Courier Hub" },
+  { id: "commission", label: "Commission & Payments" },
+  { id: "marketing", label: "Marketing Attribution" },
+  { id: "reports", label: "Reports & Audit PDF" },
+  { id: "team", label: "Team & Role Management" },
+  { id: "audit_logs", label: "Audit Logs" },
+  { id: "settings", label: "System Settings" },
+];
 
 export default function TeamPage() {
   const [members, setMembers] = useState<any[]>([]);
@@ -34,8 +53,25 @@ export default function TeamPage() {
     mobile: "",
     role: "SALES_EXECUTIVE",
     department: "Sales & Marketing",
+    commissionRate: 5,
     password: "",
     confirmPassword: "",
+  });
+
+  // Selected permission checkboxes state
+  const [selectedPermissions, setSelectedPermissions] = useState<Record<string, boolean>>({
+    dashboard: true,
+    sales: true,
+    customers: true,
+    leads: true,
+    products: true,
+    ncm: true,
+    commission: true,
+    marketing: true,
+    reports: true,
+    team: false,
+    audit_logs: true,
+    settings: false,
   });
 
   // Reset Password Modal State
@@ -64,6 +100,25 @@ export default function TeamPage() {
     fetchTeam();
   }, []);
 
+  const togglePermissionModule = (modId: string) => {
+    setSelectedPermissions((prev) => ({
+      ...prev,
+      [modId]: !prev[modId],
+    }));
+  };
+
+  const selectAllPermissions = () => {
+    const next: Record<string, boolean> = {};
+    ALL_MODULES.forEach((m) => (next[m.id] = true));
+    setSelectedPermissions(next);
+  };
+
+  const clearAllPermissions = () => {
+    const next: Record<string, boolean> = {};
+    ALL_MODULES.forEach((m) => (next[m.id] = false));
+    setSelectedPermissions(next);
+  };
+
   // Handle Add Member Submit
   const handleAddMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +138,21 @@ export default function TeamPage() {
       return;
     }
 
+    // Convert checkbox permissions to permission matrix structure
+    const customPermissionsMatrix: Record<string, any> = {};
+    ALL_MODULES.forEach((m) => {
+      const isGranted = !!selectedPermissions[m.id];
+      customPermissionsMatrix[m.id] = {
+        viewOwn: isGranted,
+        viewAll: addFormData.role === "ADMIN" ? true : isGranted,
+        create: isGranted,
+        edit: isGranted,
+        delete: isGranted,
+        export: isGranted,
+        manage: isGranted,
+      };
+    });
+
     try {
       const res = await fetch("/api/team", {
         method: "POST",
@@ -93,13 +163,15 @@ export default function TeamPage() {
           mobile: addFormData.mobile,
           role: addFormData.role,
           department: addFormData.department,
+          commissionRate: addFormData.commissionRate,
           password: addFormData.password,
+          permissions: customPermissionsMatrix,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Team member '${addFormData.name}' added successfully!`);
+        toast.success(`Team member '${addFormData.name}' added with custom module permissions!`);
         setIsAddModalOpen(false);
         setAddFormData({
           name: "",
@@ -107,6 +179,7 @@ export default function TeamPage() {
           mobile: "",
           role: "SALES_EXECUTIVE",
           department: "Sales & Marketing",
+          commissionRate: 5,
           password: "",
           confirmPassword: "",
         });
@@ -188,65 +261,61 @@ export default function TeamPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-card border border-border shadow-sm">
           <div>
             <h2 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
-              Team & Role Management
+              Team & Module Permission Management
               <ShieldCheck size={22} className="text-emerald-500" />
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Add unlimited team members, manage credentials, reset passwords & control role permissions.
+              Create team accounts, assign module access checkboxes, set commission rates & manage member credentials.
             </p>
           </div>
 
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-colors"
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 shadow-md shadow-emerald-600/20 flex items-center gap-2 self-start sm:self-auto"
           >
-            <Plus size={16} /> Add Team Member
+            <Plus size={16} /> Add New Team Member
           </button>
         </div>
 
         {/* Search Bar */}
-        <div className="p-4 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between gap-4">
-          <div className="relative w-full sm:w-80">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search team members by name, email, mobile..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-background border border-input text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            Total Members: {members.length}
-          </span>
+        <div className="relative max-w-md">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by name, email, phone or role..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-card border border-border text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
         </div>
 
-        {/* Team Members Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredMembers.map((m) => (
-            <div
-              key={m._id}
-              className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4 hover:border-emerald-500/50 transition-all flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2">
+        {/* Members Grid */}
+        {loading ? (
+          <div className="py-12 text-center text-xs text-muted-foreground">Loading team members...</div>
+        ) : filteredMembers.length === 0 ? (
+          <div className="p-8 rounded-2xl border border-dashed border-border text-center text-xs text-muted-foreground">
+            No team members found
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredMembers.map((m) => (
+              <div key={m._id} className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-sm flex items-center justify-center border border-emerald-500/30 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-600 font-bold text-sm flex items-center justify-center border border-emerald-500/30">
                       {getInitials(m.name)}
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-foreground">{m.name}</h4>
-                      <p className="text-[11px] text-muted-foreground">{m.department || "Sales & Marketing"}</p>
+                      <h3 className="font-bold text-sm text-foreground">{m.name}</h3>
+                      <p className="text-[11px] text-muted-foreground">{m.department || "Direct Sales"}</p>
                     </div>
                   </div>
-
                   <span
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
                       m.role === "ADMIN"
-                        ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                        : m.role === "SALES_MANAGER"
                         ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                        : m.role === "SALES_MANAGER"
+                        ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
                         : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                     }`}
                   >
@@ -254,7 +323,7 @@ export default function TeamPage() {
                   </span>
                 </div>
 
-                <div className="space-y-1.5 text-xs text-muted-foreground pt-3 mt-3 border-t border-border/60">
+                <div className="space-y-1.5 text-xs text-muted-foreground pt-3 border-t border-border/60">
                   <div className="flex items-center gap-2">
                     <Mail size={14} className="text-muted-foreground shrink-0" />
                     <span className="truncate">{m.email}</span>
@@ -263,43 +332,72 @@ export default function TeamPage() {
                     <Phone size={14} className="text-muted-foreground shrink-0" />
                     <span>{m.mobile || "9800000000"}</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Award size={14} className="text-emerald-500 shrink-0" />
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">Commission: {m.commissionRate || 5}%</span>
+                  </div>
+                </div>
+
+                {/* Member Module Permissions Preview Badges */}
+                <div className="pt-2 border-t border-border/60">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1.5">Granted Module Access:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {ALL_MODULES.map((mod) => {
+                      const hasAcc =
+                        m.role === "ADMIN" ||
+                        (m.permissions && m.permissions[mod.id] && m.permissions[mod.id].viewOwn);
+                      return (
+                        <span
+                          key={mod.id}
+                          className={`px-2 py-0.5 rounded text-[9px] font-semibold ${
+                            hasAcc
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                              : "bg-accent text-muted-foreground opacity-40 line-through"
+                          }`}
+                        >
+                          {mod.label.split(" ")[0]}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => {
+                      setResetMember(m);
+                      setResetPasswords({ newPassword: "", confirmPassword: "" });
+                      setIsResetModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                  >
+                    <Key size={13} /> Reset Pass
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteMember(m)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 transition-colors"
+                  >
+                    <Trash2 size={13} /> Delete
+                  </button>
                 </div>
               </div>
+            ))}
+          </div>
+        )}
 
-              {/* Action Buttons for Admin */}
-              <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => {
-                    setResetMember(m);
-                    setResetPasswords({ newPassword: "", confirmPassword: "" });
-                    setIsResetModalOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
-                  title="Reset Password"
-                >
-                  <Key size={13} /> Reset Pass
-                </button>
-
-                <button
-                  onClick={() => handleDeleteMember(m)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 transition-colors"
-                  title="Delete Member"
-                >
-                  <Trash2 size={13} /> Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* --- Add Team Member Modal --- */}
+        {/* --- Add Team Member Modal with Checkbox Permissions --- */}
         {isAddModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-            <div className="relative w-full max-w-lg my-8 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="relative w-full max-w-2xl my-8 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card-elevated">
                 <div className="flex items-center gap-2">
                   <UserCheck size={20} className="text-emerald-500" />
-                  <h3 className="font-bold text-base text-foreground">Add New Team Member</h3>
+                  <div>
+                    <h3 className="font-bold text-base text-foreground">Add New Team Member</h3>
+                    <p className="text-[11px] text-muted-foreground">Set account credentials & tick module access checkboxes</p>
+                  </div>
                 </div>
                 <button
                   onClick={() => setIsAddModalOpen(false)}
@@ -309,7 +407,7 @@ export default function TeamPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleAddMemberSubmit} className="p-6 space-y-4 text-xs">
+              <form onSubmit={handleAddMemberSubmit} className="p-6 space-y-4 text-xs overflow-y-auto flex-1">
                 <div>
                   <label className="block font-medium text-foreground mb-1">Full Name *</label>
                   <input
@@ -317,20 +415,20 @@ export default function TeamPage() {
                     required
                     value={addFormData.name}
                     onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
-                    placeholder="e.g. Rahul Sharma"
+                    placeholder="e.g. Ram Sharma"
                     className="w-full px-3 py-2 rounded-xl bg-background border border-input text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-medium text-foreground mb-1">Email Address *</label>
+                    <label className="block font-medium text-foreground mb-1">Email / Username *</label>
                     <input
                       type="email"
                       required
                       value={addFormData.email}
                       onChange={(e) => setAddFormData({ ...addFormData, email: e.target.value })}
-                      placeholder="rahul@eazyinvo.com"
+                      placeholder="ram@example.com"
                       className="w-full px-3 py-2 rounded-xl bg-background border border-input text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -348,7 +446,7 @@ export default function TeamPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block font-medium text-foreground mb-1">System Role *</label>
                     <select
@@ -372,11 +470,22 @@ export default function TeamPage() {
                       className="w-full px-3 py-2 rounded-xl bg-background border border-input text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
+
+                  <div>
+                    <label className="block font-medium text-foreground mb-1">Commission Rate (%)</label>
+                    <input
+                      type="number"
+                      value={addFormData.commissionRate}
+                      onChange={(e) => setAddFormData({ ...addFormData, commissionRate: Number(e.target.value) })}
+                      placeholder="5"
+                      className="w-full px-3 py-2 rounded-xl bg-background border border-input text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-600"
+                    />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/60">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border/60">
                   <div>
-                    <label className="block font-medium text-foreground mb-1">New Password *</label>
+                    <label className="block font-medium text-foreground mb-1">Account Password *</label>
                     <input
                       type="password"
                       required
@@ -400,6 +509,57 @@ export default function TeamPage() {
                   </div>
                 </div>
 
+                {/* --- MODULE ACCESS PERMISSION CHECKBOXES --- */}
+                <div className="pt-3 border-t border-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                        <ShieldCheck size={14} className="text-emerald-500" /> Module Access Checkboxes
+                      </h4>
+                      <p className="text-[10px] text-muted-foreground">Tick only the modules this member is allowed to access</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={selectAllPermissions}
+                        className="text-[10px] text-emerald-600 font-bold hover:underline"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-muted-foreground">•</span>
+                      <button
+                        type="button"
+                        onClick={clearAllPermissions}
+                        className="text-[10px] text-rose-500 font-bold hover:underline"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-xl bg-accent/30 border border-border">
+                    {ALL_MODULES.map((mod) => {
+                      const isChecked = !!selectedPermissions[mod.id];
+                      return (
+                        <label
+                          key={mod.id}
+                          className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => togglePermissionModule(mod.id)}
+                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <span className={`text-xs ${isChecked ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                            {mod.label}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
                   <button
                     type="button"
@@ -412,7 +572,7 @@ export default function TeamPage() {
                     type="submit"
                     className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
                   >
-                    Add Member
+                    Create Member & Apply Permissions
                   </button>
                 </div>
               </form>

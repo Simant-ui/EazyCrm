@@ -46,24 +46,7 @@ export const memoryStore: {
   payments: [...SEED_PAYMENTS],
   auditLogs: [...SEED_AUDIT_LOGS],
   products: [...SEED_PRODUCTS],
-  notifications: [
-    {
-      _id: "notif_01",
-      title: "New Lead Assigned",
-      message: "Greenland Departmental Store assigned to Aayusha.",
-      type: "info",
-      isRead: false,
-      createdAt: new Date(),
-    },
-    {
-      _id: "notif_02",
-      title: "Sale Confirmed",
-      message: "Sale #EZ-1004 confirmed for Apex Electronics Hub.",
-      type: "success",
-      isRead: true,
-      createdAt: new Date(Date.now() - 3600000),
-    },
-  ],
+  notifications: [],
 };
 
 export async function connectDB() {

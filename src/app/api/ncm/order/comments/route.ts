@@ -5,10 +5,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    if (!id) {
-      return NextResponse.json({ error: "ID parameter missing" }, { status: 400 });
-    }
-    const result = await NCMClient.getOrder(id);
+    if (!id) return NextResponse.json({ error: "ID parameter missing" }, { status: 400 });
+
+    const result = await NCMClient.getOrderComments(id);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -17,8 +16,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const result = await NCMClient.createOrder(body);
+    const { orderid, comments } = await req.json();
+    if (!orderid || !comments) {
+      return NextResponse.json({ error: "orderid and comments are required" }, { status: 400 });
+    }
+
+    const result = await NCMClient.createComment(orderid, comments);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

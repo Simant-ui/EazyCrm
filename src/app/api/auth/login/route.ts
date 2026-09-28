@@ -8,23 +8,33 @@ export async function POST(req: NextRequest) {
     const users = await getUsers();
 
     const inputKey = (email || "").trim().toLowerCase();
+    const inputPass = (password || "").trim();
 
-    // Match user by email or mobile number
-    const user = users.find(
-      (u: any) =>
-        u.email?.toLowerCase() === inputKey ||
-        u.mobile?.trim() === inputKey
-    );
+    if (!inputKey || !inputPass) {
+      return NextResponse.json(
+        { error: "Username/Email and Password are required" },
+        { status: 400 }
+      );
+    }
+
+    // Match user by email, name (username), or mobile number
+    const user = users.find((u: any) => {
+      const uEmail = (u.email || "").trim().toLowerCase();
+      const uName = (u.name || "").trim().toLowerCase();
+      const uMobile = (u.mobile || "").trim();
+      return uEmail === inputKey || uName === inputKey || uMobile === inputKey;
+    });
 
     if (!user) {
       return NextResponse.json(
-        { error: "Invalid username/email or user not found. Please contact Admin." },
+        { error: "User not found. Please check credentials or contact Admin." },
         { status: 401 }
       );
     }
 
-    // Verify Password if user has a password set
-    if (user.password && password && user.password !== password) {
+    // Verify Password set in Admin Panel
+    const storedPass = (user.password || "").trim();
+    if (storedPass && storedPass !== inputPass) {
       return NextResponse.json(
         { error: "Incorrect password. Please try again or contact Admin to reset password." },
         { status: 401 }
@@ -32,14 +42,14 @@ export async function POST(req: NextRequest) {
     }
 
     const sessionUser = {
-      id: user._id,
+      id: String(user._id),
       name: user.name,
       email: user.email,
       mobile: user.mobile,
-      role: user.role,
-      department: user.department,
-      avatarUrl: user.avatarUrl,
-      permissions: user.permissions,
+      role: user.role || "SALES_EXECUTIVE",
+      department: user.department || "Sales",
+      avatarUrl: user.avatarUrl || "",
+      permissions: user.permissions || {},
     };
 
     const token = await createSessionToken(sessionUser);

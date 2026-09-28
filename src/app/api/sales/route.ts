@@ -7,6 +7,7 @@ import { createNcmOrder } from "@/lib/ncm";
 
 export async function GET(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const salesperson = searchParams.get("salesperson") || "";
@@ -14,6 +15,18 @@ export async function GET(req: NextRequest) {
     const campaign = searchParams.get("campaign") || "";
 
     let sales = await getSales();
+
+    // Role-based data scoping: Non-admin users only see their own sales!
+    if (currentUser.role === "SALES_EXECUTIVE") {
+      sales = sales.filter(
+        (s: any) =>
+          s.salespersonId === currentUser.id ||
+          s.salespersonName === currentUser.name ||
+          (currentUser.email && s.salespersonEmail === currentUser.email)
+      );
+    } else if (salesperson && salesperson !== "ALL") {
+      sales = sales.filter((s: any) => s.salespersonName === salesperson || s.salespersonId === salesperson);
+    }
 
     if (search) {
       const q = search.toLowerCase();
@@ -25,10 +38,6 @@ export async function GET(req: NextRequest) {
           s.product.toLowerCase().includes(q) ||
           (s.ncmOrderId && s.ncmOrderId.includes(q))
       );
-    }
-
-    if (salesperson && salesperson !== "ALL") {
-      sales = sales.filter((s: any) => s.salespersonName === salesperson || s.salespersonId === salesperson);
     }
 
     if (status && status !== "ALL") {
@@ -108,8 +117,9 @@ export async function POST(req: NextRequest) {
 
     let finalSaleStatus = status;
 
-    // Trigger Nepal Can Move Order Creation if requested
-    if (shouldCreateNcm && ncmBranch) {
+    // Trigger Nepal Can Move Order Creation ONLY IF status is CONFIRMED
+    const isConfirmedStatus = status === "CONFIRMED" || status === "SHIPPED";
+    if (isConfirmedStatus && shouldCreateNcm && ncmBranch) {
       const ncmResult = await createNcmOrder({
         name: customerName,
         phone: customerMobile,
@@ -199,24 +209,22 @@ export async function POST(req: NextRequest) {
         action: "CREATE_SALE",
         module: "sales",
         recordId: saleId,
-        details: `${currentUser.name} created sale #${saleId} for ${customerName} (Qty: ${calc.quantity}, Revenue: Rs. ${calc.finalAmount})`,
+        details: `${currentUser.name} created sale #${saleId} for ${customerName} (Rs. ${calc.finalAmount})`,
       });
 
       return NextResponse.json({ success: true, sale });
     } else {
-      // Memory Store fallback
-      const saleWithId = { _id: `sale_${Date.now()}`, ...newSaleData };
-      memoryStore.sales.unshift(saleWithId);
+      const sale = { _id: `sale_${Date.now()}`, ...newSaleData };
+      memoryStore.sales.unshift(sale);
 
-      // Update customer in memory
-      let existingCust = memoryStore.customers.find((c: any) => c.mobile === customerMobile);
-      if (existingCust) {
-        existingCust.totalOrders += 1;
-        existingCust.totalUnits += calc.quantity;
-        existingCust.totalSpent += calc.finalAmount;
-        existingCust.lastPurchaseDate = new Date();
+      let customer = memoryStore.customers.find((c: any) => c.mobile === customerMobile);
+      if (customer) {
+        customer.totalOrders += 1;
+        customer.totalUnits += calc.quantity;
+        customer.totalSpent += calc.finalAmount;
+        customer.lastPurchaseDate = new Date();
       } else {
-        memoryStore.customers.push({
+        memoryStore.customers.unshift({
           _id: `cust_${Date.now()}`,
           name: customerName,
           mobile: customerMobile,
@@ -228,10 +236,10 @@ export async function POST(req: NextRequest) {
           totalUnits: calc.quantity,
           totalSpent: calc.finalAmount,
           lastPurchaseDate: new Date(),
+          createdAt: new Date(),
         });
       }
 
-      // Audit Log in memory
       memoryStore.auditLogs.unshift({
         _id: `log_${Date.now()}`,
         userId: currentUser.id,
@@ -240,13 +248,13 @@ export async function POST(req: NextRequest) {
         action: "CREATE_SALE",
         module: "sales",
         recordId: saleId,
-        details: `${currentUser.name} created sale #${saleId} for ${customerName} (Qty: ${calc.quantity}, Revenue: Rs. ${calc.finalAmount})`,
+        details: `${currentUser.name} created sale #${saleId} for ${customerName} (Rs. ${calc.finalAmount})`,
         createdAt: new Date(),
       });
 
-      return NextResponse.json({ success: true, sale: saleWithId });
+      return NextResponse.json({ success: true, sale });
     }
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to create sale" }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

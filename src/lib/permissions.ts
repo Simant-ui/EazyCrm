@@ -5,7 +5,9 @@ export type ModuleName =
   | "sales"
   | "customers"
   | "leads"
+  | "products"
   | "commission"
+  | "ncm"
   | "reports"
   | "marketing"
   | "team"
@@ -29,7 +31,9 @@ export const DEFAULT_PERMISSIONS: Record<Role, PermissionMatrix> = {
     sales: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
     customers: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
     leads: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
+    products: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
     commission: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
+    ncm: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
     reports: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
     marketing: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
     team: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
@@ -41,7 +45,9 @@ export const DEFAULT_PERMISSIONS: Record<Role, PermissionMatrix> = {
     sales: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
     customers: { viewOwn: true, viewAll: true, create: true, edit: true, delete: false, export: true, manage: false },
     leads: { viewOwn: true, viewAll: true, create: true, edit: true, delete: true, export: true, manage: true },
+    products: { viewOwn: true, viewAll: true, create: true, edit: true, delete: false, export: true, manage: false },
     commission: { viewOwn: true, viewAll: true, create: false, edit: true, delete: false, export: true, manage: true },
+    ncm: { viewOwn: true, viewAll: true, create: true, edit: true, delete: false, export: true, manage: true },
     reports: { viewOwn: true, viewAll: true, create: false, edit: false, delete: false, export: true, manage: false },
     marketing: { viewOwn: true, viewAll: true, create: true, edit: true, delete: false, export: true, manage: true },
     team: { viewOwn: true, viewAll: true, create: false, edit: false, delete: false, export: false, manage: false },
@@ -53,7 +59,9 @@ export const DEFAULT_PERMISSIONS: Record<Role, PermissionMatrix> = {
     sales: { viewOwn: true, viewAll: true, create: true, edit: true, delete: false, export: true, manage: false },
     customers: { viewOwn: true, viewAll: true, create: true, edit: true, delete: false, export: false, manage: false },
     leads: { viewOwn: true, viewAll: true, create: true, edit: true, delete: false, export: true, manage: false },
+    products: { viewOwn: true, viewAll: true, create: false, edit: false, delete: false, export: false, manage: false },
     commission: { viewOwn: true, viewAll: false, create: false, edit: false, delete: false, export: false, manage: false },
+    ncm: { viewOwn: true, viewAll: false, create: true, edit: true, delete: false, export: false, manage: false },
     reports: { viewOwn: true, viewAll: false, create: false, edit: false, delete: false, export: true, manage: false },
     marketing: { viewOwn: true, viewAll: false, create: false, edit: false, delete: false, export: false, manage: false },
     team: { viewOwn: true, viewAll: false, create: false, edit: false, delete: false, export: false, manage: false },

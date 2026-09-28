@@ -2,29 +2,48 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSales, getUsers, getPayments, isMongoConnected, memoryStore } from "@/lib/db";
 import { CommissionPayment, AuditLog } from "@/lib/models";
 import { getCurrentUser } from "@/lib/auth";
+import { getCommissions } from "@/lib/commission-engine";
 
 export async function GET(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser();
     const sales = await getSales();
-    const users = await getUsers();
-    const payments = await getPayments();
+    let users = await getUsers();
+    let payments = await getPayments();
+    let commissions = await getCommissions();
 
-    const activeSalespeople = users.filter((u: any) => u.role !== "ADMIN" || true);
+    // Role-based data scoping: Non-admin staff only see their own commission data!
+    if (currentUser.role === "SALES_EXECUTIVE") {
+      users = users.filter((u: any) => u._id === currentUser.id || u.name === currentUser.name);
+      payments = payments.filter((p: any) => p.salespersonId === currentUser.id || p.salespersonName === currentUser.name);
+      commissions = commissions.filter((c: any) => c.memberId === currentUser.id || c.memberName === currentUser.name);
+    }
 
-    // Calculate commission summaries per salesperson
-    const memberSummaries = activeSalespeople.map((user: any) => {
-      const userSales = sales.filter(
+    // Calculate commission summaries per salesperson using DELIVERED status rule!
+    const memberSummaries = users.map((user: any) => {
+      // Rule: ONLY DELIVERED sales generate earned commission
+      const deliveredSales = sales.filter(
         (s: any) =>
           (s.salespersonId === user._id || s.salespersonName === user.name) &&
-          s.status !== "CANCELLED"
+          (s.status === "DELIVERED" || s.status === "COMPLETED")
       );
 
-      const unitsSold = userSales.reduce((acc: number, s: any) => acc + (s.quantity || 1), 0);
-      const totalRevenue = userSales.reduce((acc: number, s: any) => acc + (s.finalAmount || 0), 0);
-      const totalCommission = userSales.reduce(
-        (acc: number, s: any) => acc + (s.totalCommission || 0),
-        0
+      const allUserSales = sales.filter(
+        (s: any) => s.salespersonId === user._id || s.salespersonName === user.name
       );
+
+      const unitsSold = deliveredSales.reduce((acc: number, s: any) => acc + (s.quantity || 1), 0);
+      const totalRevenue = deliveredSales.reduce((acc: number, s: any) => acc + (s.finalAmount || 0), 0);
+
+      // Fetch commission amount from CommissionRecords or delivered sales totalCommission
+      const userCommRecords = commissions.filter(
+        (c: any) => (c.memberId === user._id || c.memberName === user.name) && c.status !== "REVERSED"
+      );
+
+      const totalCommission =
+        userCommRecords.length > 0
+          ? userCommRecords.reduce((acc: number, c: any) => acc + (c.commissionAmount || 0), 0)
+          : deliveredSales.reduce((acc: number, s: any) => acc + (s.totalCommission || 0), 0);
 
       const userPayments = payments.filter(
         (p: any) => p.salespersonId === user._id || p.salespersonName === user.name
@@ -38,8 +57,10 @@ export async function GET(req: NextRequest) {
         email: user.email,
         role: user.role,
         department: user.department,
+        commissionRate: user.commissionRate || 5,
         unitsSold,
-        salesCount: userSales.length,
+        salesCount: allUserSales.length,
+        deliveredCount: deliveredSales.length,
         totalRevenue,
         totalCommission,
         paid: paidAmount,
@@ -53,18 +74,11 @@ export async function GET(req: NextRequest) {
     const grandPaidCommission = memberSummaries.reduce((acc, m) => acc + m.paid, 0);
     const grandPendingCommission = Math.max(0, grandTotalCommission - grandPaidCommission);
 
-    // This month commission
-    const currentMonthStr = new Date().toISOString().substring(0, 7);
-    const thisMonthCommission = sales
-      .filter((s: any) => s.status !== "CANCELLED" && String(s.createdAt).substring(0, 7) === currentMonthStr)
-      .reduce((acc: number, s: any) => acc + (s.totalCommission || 0), 0);
-
     return NextResponse.json({
       totals: {
         totalCommission: grandTotalCommission,
         paidCommission: grandPaidCommission,
         pendingCommission: grandPendingCommission,
-        thisMonthCommission,
       },
       members: memberSummaries,
       payments,

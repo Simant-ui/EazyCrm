@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   ChevronDown,
   Package,
+  Truck,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { EazyInvoLogo } from "@/components/common/EazyInvoLogo";
@@ -98,6 +99,16 @@ export function Sidebar({ collapsed, setCollapsed, onNavigateMobile, onOpenAddSa
       title: "Products Catalog",
       href: "/products",
       icon: Package,
+      module: "products",
+      action: "viewOwn",
+    },
+    {
+      title: "NCM Courier Hub",
+      href: "/ncm",
+      icon: Truck,
+      module: "ncm",
+      action: "viewOwn",
+      badge: "NCM API",
     },
     {
       title: "Commission",
