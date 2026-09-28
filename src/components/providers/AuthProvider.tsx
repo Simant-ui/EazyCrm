@@ -8,6 +8,7 @@ import { toast } from "sonner";
 interface AuthContextType {
   user: UserSession;
   loading: boolean;
+  login: (email: string, password?: string) => Promise<boolean>;
   switchUser: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (moduleName: ModuleName, action: PermissionAction) => boolean;
@@ -17,6 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: DEFAULT_DEMO_USER,
   loading: false,
+  login: async () => false,
   switchUser: async () => {},
   logout: async () => {},
   hasPermission: () => true,
@@ -47,6 +49,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchUser();
   }, []);
 
+  const login = async (email: string, password?: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setUser(data.user);
+        toast.success(`Welcome back, ${data.user.name}!`);
+        return true;
+      } else {
+        toast.error(data.error || "Login failed. Please check your credentials.");
+        return false;
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Network error logging in");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const switchUser = async (email: string) => {
     try {
       setLoading(true);
@@ -58,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
-        toast.success(`Switched role to ${data.user.name} (${data.user.role})`);
+        toast.success(`Switched account to ${data.user.name} (${data.user.role})`);
         window.location.reload();
       } else {
         toast.error("Failed to switch user account");
@@ -89,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        login,
         switchUser,
         logout,
         hasPermission: checkUserPermission,

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { switchUser } = useAuth();
+  const { login, switchUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,15 +16,17 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      toast.error("Please enter an email address");
+      toast.error("Please enter an email address or username");
       return;
     }
     setLoading(true);
     try {
-      await switchUser(email);
-      router.push("/dashboard");
-    } catch (error) {
-      toast.error("Login failed. Check credentials.");
+      const ok = await login(email, password);
+      if (ok) {
+        router.push("/dashboard");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Login failed. Check credentials.");
     } finally {
       setLoading(false);
     }
