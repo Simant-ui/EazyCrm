@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUsers, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { User, AuditLog } from "@/lib/models";
 import { getCurrentUser } from "@/lib/auth";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function GET() {
   try {
@@ -68,6 +69,10 @@ export async function POST(req: NextRequest) {
         recordId: String(newUser._id),
         details: `${currentUser.name} added team member ${name} (${role}, ${department})`,
       });
+
+      // Send welcome email via Gmail SMTP asynchronously
+      sendWelcomeEmail(cleanEmail, name.trim(), role, password.trim()).catch(() => {});
+
       return NextResponse.json({ success: true, user: newUser });
     } else {
       const existing = memoryStore.users.find((u: any) => u.email.toLowerCase() === cleanEmail);
@@ -88,6 +93,9 @@ export async function POST(req: NextRequest) {
         details: `${currentUser.name} added team member ${name} (${role}, ${department})`,
         createdAt: new Date(),
       });
+
+      sendWelcomeEmail(cleanEmail, name.trim(), role, password.trim()).catch(() => {});
+
       return NextResponse.json({ success: true, user: userWithId });
     }
   } catch (error: any) {
