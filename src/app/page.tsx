@@ -1,30 +1,16 @@
-"use client";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/providers/AuthProvider";
+export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const router = useRouter();
-  const { user, isAuthenticated, loading } = useAuth();
+export default async function HomePage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("eazybox_session")?.value;
 
-  useEffect(() => {
-    if (!loading) {
-      if (isAuthenticated && user) {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/login");
-      }
-    }
-  }, [loading, isAuthenticated, user, router]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs font-semibold text-muted-foreground">Authenticating EazyBox...</p>
-      </div>
-    </div>
-  );
+  if (token) {
+    redirect("/dashboard");
+  } else {
+    redirect("/login");
+  }
 }
 

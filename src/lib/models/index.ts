@@ -115,6 +115,13 @@ const SaleSchema = new Schema<ISale>(
 );
 
 // --- Customer Schema ---
+export interface ICustomerRemark {
+  text: string;
+  addedBy?: string;
+  saleId?: string;
+  createdAt: Date;
+}
+
 export interface ICustomer extends Document {
   _id: any;
   name: string;
@@ -127,6 +134,7 @@ export interface ICustomer extends Document {
   totalUnits: number;
   totalSpent: number;
   lastPurchaseDate?: Date;
+  remarks?: ICustomerRemark[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -144,6 +152,14 @@ const CustomerSchema = new Schema<ICustomer>(
     totalUnits: { type: Number, default: 0 },
     totalSpent: { type: Number, default: 0 },
     lastPurchaseDate: { type: Date },
+    remarks: [
+      {
+        text: { type: String, required: true },
+        addedBy: { type: String, default: "" },
+        saleId: { type: String, default: "" },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

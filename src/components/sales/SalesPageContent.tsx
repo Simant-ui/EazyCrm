@@ -50,7 +50,7 @@ const DEFAULT_NCM_BRANCHES = [
 ];
 
 export function SalesPageContent() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [sales, setSales] = useState<any[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [ncmBranches, setNcmBranches] = useState<string[]>(DEFAULT_NCM_BRANCHES);
@@ -298,19 +298,21 @@ export function SalesPageContent() {
             />
           </div>
 
-          {/* Salesperson Filter */}
-          <select
-            value={salespersonFilter}
-            onChange={(e) => setSalespersonFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-background border border-input text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="ALL">All Salespeople</option>
-            {teamMembers.map((m) => (
-              <option key={m._id} value={m.name}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+          {/* Salesperson Filter (Visible ONLY to ADMIN) */}
+          {user?.role === "ADMIN" && (
+            <select
+              value={salespersonFilter}
+              onChange={(e) => setSalespersonFilter(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-background border border-input text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="ALL">All Salespeople</option>
+              {teamMembers.map((m) => (
+                <option key={m._id} value={m.name}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
 
           {/* Status Filter */}
           <select

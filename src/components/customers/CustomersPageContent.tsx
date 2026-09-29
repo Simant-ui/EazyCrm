@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Users, Search, Plus, Eye, ShoppingBag, Phone, Mail, MapPin, Calendar, DollarSign, X } from "lucide-react";
+import { Users, Search, Plus, Eye, ShoppingBag, Phone, Mail, MapPin, Calendar, DollarSign, X, FileText } from "lucide-react";
 import { formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import { AddCustomerModal } from "./AddCustomerModal";
@@ -141,6 +141,33 @@ export function CustomersPageContent() {
               <div className="p-3 rounded-xl bg-accent/40"><span className="text-muted-foreground">Total Spent: </span><span className="font-extrabold text-primary">{formatCurrency(activeCust.totalSpent)}</span></div>
               <div className="p-3 rounded-xl bg-accent/40"><span className="text-muted-foreground">Account Rep: </span><span className="font-bold text-foreground">{activeCust.salespersonName}</span></div>
               <div className="p-3 rounded-xl bg-accent/40"><span className="text-muted-foreground">Last Purchase: </span><span className="font-bold text-foreground">{formatDate(activeCust.lastPurchaseDate)}</span></div>
+            </div>
+
+            {/* Customer Remarks Timeline */}
+            <div className="pt-3 border-t border-border space-y-2">
+              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <FileText size={14} className="text-emerald-500" /> Customer Remarks & Notes History
+              </h4>
+              <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                {activeCust.remarks && activeCust.remarks.length > 0 ? (
+                  activeCust.remarks.map((r: any, idx: number) => (
+                    <div key={idx} className="p-2.5 rounded-xl bg-muted/40 border border-border text-xs space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span className="font-semibold text-foreground">{r.addedBy || "Sales Executive"}</span>
+                        <span>{formatDate(r.createdAt)}</span>
+                      </div>
+                      <p className="text-foreground whitespace-pre-wrap font-medium">{r.text}</p>
+                      {r.saleId && (
+                        <div className="text-[10px] text-emerald-600 font-bold">Sale Ref: #{r.saleId}</div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 rounded-xl bg-muted/20 text-center text-xs text-muted-foreground italic">
+                    No remarks stored for this customer yet. Remarks added during sales creation will appear here automatically.
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="pt-3 border-t border-border flex justify-end">

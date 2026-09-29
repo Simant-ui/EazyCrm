@@ -188,6 +188,13 @@ export async function POST(req: NextRequest) {
     if (isMongoConnected()) {
       const sale = await Sale.create(newSaleData);
 
+      const newRemarkObj = remark && String(remark).trim() ? {
+        text: String(remark).trim(),
+        addedBy: currentUser.name,
+        saleId: saleId,
+        createdAt: new Date(),
+      } : null;
+
       // Create/Update Customer record in MongoDB
       let customer = await Customer.findOne({ mobile: customerMobile });
       if (customer) {
@@ -195,6 +202,10 @@ export async function POST(req: NextRequest) {
         customer.totalUnits += calc.quantity;
         customer.totalSpent += calc.finalAmount;
         customer.lastPurchaseDate = new Date();
+        if (newRemarkObj) {
+          if (!customer.remarks) customer.remarks = [];
+          customer.remarks.push(newRemarkObj);
+        }
         await customer.save();
       } else {
         await Customer.create({
@@ -208,6 +219,7 @@ export async function POST(req: NextRequest) {
           totalUnits: calc.quantity,
           totalSpent: calc.finalAmount,
           lastPurchaseDate: new Date(),
+          remarks: newRemarkObj ? [newRemarkObj] : [],
         });
       }
 
@@ -227,12 +239,23 @@ export async function POST(req: NextRequest) {
       const sale = { _id: `sale_${Date.now()}`, ...newSaleData };
       memoryStore.sales.unshift(sale);
 
+      const newRemarkObj = remark && String(remark).trim() ? {
+        text: String(remark).trim(),
+        addedBy: currentUser.name,
+        saleId: saleId,
+        createdAt: new Date(),
+      } : null;
+
       let customer = memoryStore.customers.find((c: any) => c.mobile === customerMobile);
       if (customer) {
         customer.totalOrders += 1;
         customer.totalUnits += calc.quantity;
         customer.totalSpent += calc.finalAmount;
         customer.lastPurchaseDate = new Date();
+        if (!customer.remarks) customer.remarks = [];
+        if (newRemarkObj) {
+          customer.remarks.push(newRemarkObj);
+        }
       } else {
         memoryStore.customers.unshift({
           _id: `cust_${Date.now()}`,
@@ -246,6 +269,7 @@ export async function POST(req: NextRequest) {
           totalUnits: calc.quantity,
           totalSpent: calc.finalAmount,
           lastPurchaseDate: new Date(),
+          remarks: newRemarkObj ? [newRemarkObj] : [],
           createdAt: new Date(),
         });
       }

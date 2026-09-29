@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { calculateCommission } from "@/lib/business";
 import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 const addSaleSchema = z.object({
   customerName: z.string().min(2, "Customer name is required"),
@@ -35,7 +36,7 @@ const addSaleSchema = z.object({
   campaign: z.string().default("Dashain Special Promo 2026"),
   adSet: z.string().optional(),
   ad: z.string().optional(),
-  salespersonId: z.string().min(1, "Select salesperson"),
+  salespersonId: z.string().optional(),
   status: z.string().default("CONFIRMED"),
   remark: z.string().optional(),
 
@@ -79,6 +80,7 @@ const DEFAULT_NCM_BRANCHES = [
 ];
 
 export function AddSaleModal({ isOpen, onClose, onSuccess }: AddSaleModalProps) {
+  const { user: currentUser } = useAuth();
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [productsList, setProductsList] = useState<any[]>([]);
   const [selectedProdInfo, setSelectedProdInfo] = useState<any>(null);
@@ -101,7 +103,7 @@ export function AddSaleModal({ isOpen, onClose, onSuccess }: AddSaleModalProps) 
       campaign: "Dashain Special Promo 2026",
       adSet: "",
       ad: "",
-      salespersonId: "",
+      salespersonId: currentUser?.id || "",
       status: "CONFIRMED",
       remark: "",
       createNcmOrder: false,
@@ -132,12 +134,18 @@ export function AddSaleModal({ isOpen, onClose, onSuccess }: AddSaleModalProps) 
   const watchedNcmType = watch("ncmDeliveryType");
 
   useEffect(() => {
+    if (currentUser?.id) {
+      setValue("salespersonId", currentUser.id);
+    }
+  }, [currentUser, setValue]);
+
+  useEffect(() => {
     // Fetch Team Members
     fetch("/api/team")
       .then((r) => r.json())
       .then((d) => {
         setTeamMembers(d.users || []);
-        if (d.users && d.users.length > 0) {
+        if (!currentUser?.id && d.users && d.users.length > 0) {
           setValue("salespersonId", d.users[0]._id);
         }
       })
@@ -208,14 +216,17 @@ export function AddSaleModal({ isOpen, onClose, onSuccess }: AddSaleModalProps) 
   const onSubmit = async (values: AddSaleFormValues) => {
     setLoading(true);
     try {
-      const selectedMember = teamMembers.find((m) => m._id === values.salespersonId);
+      const selectedMember = teamMembers.find((m) => m._id === values.salespersonId || m._id === currentUser?.id);
+      const activeUserId = currentUser?.id || (currentUser as any)?._id || values.salespersonId || (selectedMember ? selectedMember._id : "");
+      const activeUserName = currentUser?.name || (selectedMember ? selectedMember.name : "Sales Executive");
 
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...values,
-          salespersonName: selectedMember ? selectedMember.name : "Sales Executive",
+          salespersonId: activeUserId,
+          salespersonName: activeUserName,
         }),
       });
 
@@ -571,26 +582,27 @@ export function AddSaleModal({ isOpen, onClose, onSuccess }: AddSaleModalProps) 
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Assigned Sales Executive *</label>
-                <select
-                  {...form.register("salespersonId")}
-                  className="w-full px-3 py-2 rounded-xl bg-background border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {teamMembers.map((m) => (
-                    <option key={m._id} value={m._id}>
-                      {m.name} ({m.role.replace("_", " ")})
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-xs font-medium text-foreground mb-1">Sales Executive (Auto-Assigned)</label>
+                <div className="w-full px-3 py-2 rounded-xl bg-muted/40 border border-input text-foreground text-sm font-medium flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold uppercase">
+                      {currentUser?.name ? currentUser.name.charAt(0) : "U"}
+                    </div>
+                    <span className="font-semibold text-foreground">{currentUser?.name || "Logged-in Executive"}</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    {currentUser?.role ? currentUser.role.replace("_", " ") : "Executive"}
+                  </span>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Order Remark / Notes</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-medium text-foreground mb-1">Order Remarks / Notes (Customer History)</label>
+                <textarea
                   {...form.register("remark")}
-                  placeholder="Special instructions or notes..."
-                  className="w-full px-3 py-2 rounded-xl bg-background border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  rows={3}
+                  placeholder="Enter detailed special instructions, customer preferences, or notes (stored under customer history)..."
+                  className="w-full px-3 py-2 rounded-xl bg-background border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
                 />
               </div>
             </div>
