@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLeads, getUsers, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Lead, AuditLog } from "@/lib/models";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("leads", "view");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to view leads." }, { status: 403 });
+    }
     await connectDB();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const salesperson = searchParams.get("salesperson") || "";
     const status = searchParams.get("status") || "";
 
-    const currentUser = await getCurrentUser();
     let leads = await getLeads();
 
     // Role-based data scoping: Non-admin users only see their own assigned leads!
@@ -50,8 +55,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("leads", "create");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to create leads." }, { status: 403 });
+    }
     await connectDB();
-    const currentUser = await getCurrentUser();
     const body = await req.json();
 
     const {

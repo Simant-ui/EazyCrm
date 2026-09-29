@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isMongoConnected, memoryStore } from "@/lib/db";
 import { Lead, AuditLog } from "@/lib/models";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("leads", "edit");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to edit leads." }, { status: 403 });
+    }
+
     const { id } = await params;
     const body = await req.json();
-    const currentUser = await getCurrentUser();
 
     const { status, note, followUpDate, followUpNote } = body;
 

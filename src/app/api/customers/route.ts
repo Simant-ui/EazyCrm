@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCustomers, getUsers, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Customer, AuditLog } from "@/lib/models";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("customers", "view");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to view customers." }, { status: 403 });
+    }
     await connectDB();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
 
-    const currentUser = await getCurrentUser();
     let customers = await getCustomers();
 
     // Role-based data scoping: Non-admin users only see their own assigned customers!
@@ -39,8 +44,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("customers", "create");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to create customers." }, { status: 403 });
+    }
     await connectDB();
-    const currentUser = await getCurrentUser();
     const body = await req.json();
 
     const { name, mobile, email = "", address = "", salespersonId, salespersonName } = body;
