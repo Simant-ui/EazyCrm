@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { User, AuditLog } from "@/lib/models";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requirePermission } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("team", "edit");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to edit team members." }, { status: 403 });
+    }
     await connectDB();
     const { id } = await params;
     const body = await req.json();
-    const currentUser = await getCurrentUser();
 
     if (isMongoConnected()) {
-      const user = await User.findById(id);
+      const user = (await User.findOne({ _id: id })) || (await User.findById(id).catch(() => null));
       if (!user) return NextResponse.json({ error: "Member not found" }, { status: 404 });
 
       if (body.name) user.name = body.name;
@@ -75,9 +80,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("team", "delete");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to delete team members." }, { status: 403 });
+    }
     await connectDB();
     const { id } = await params;
-    const currentUser = await getCurrentUser();
 
     if (isMongoConnected()) {
       const user = await User.findById(id);

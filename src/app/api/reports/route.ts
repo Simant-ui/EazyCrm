@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSales, getLeads, getUsers, getPayments } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,10 +10,27 @@ export async function GET(req: NextRequest) {
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
 
+    const currentUser = await getCurrentUser();
     let allSales = await getSales();
     let allLeads = await getLeads();
     let allUsers = await getUsers();
     let allPayments = await getPayments();
+
+    // Role-based scoping: Non-admin users only see metrics for their own account!
+    if (currentUser.role !== "ADMIN") {
+      allSales = allSales.filter(
+        (s: any) => String(s.salespersonId) === String(currentUser.id) || s.salespersonName === currentUser.name
+      );
+      allLeads = allLeads.filter(
+        (l: any) => String(l.salespersonId) === String(currentUser.id) || l.salespersonName === currentUser.name
+      );
+      allUsers = allUsers.filter(
+        (u: any) => String(u._id) === String(currentUser.id) || u.name === currentUser.name
+      );
+      allPayments = allPayments.filter(
+        (p: any) => String(p.salespersonId) === String(currentUser.id) || p.salespersonName === currentUser.name
+      );
+    }
 
     // Filter by Date Range if provided
     let filteredSales = allSales;

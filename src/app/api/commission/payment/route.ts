@@ -3,14 +3,22 @@ import { getPayments, getUsers, isMongoConnected, memoryStore } from "@/lib/db";
 import { CommissionPayment, AuditLog } from "@/lib/models";
 import { getCurrentUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser();
     const { searchParams } = new URL(req.url);
     const salespersonId = searchParams.get("salespersonId");
 
     let payments = await getPayments();
-    if (salespersonId && salespersonId !== "ALL") {
-      payments = payments.filter((p: any) => p.salespersonId === salespersonId);
+
+    if (currentUser.role !== "ADMIN") {
+      payments = payments.filter(
+        (p: any) => String(p.salespersonId) === String(currentUser.id) || p.salespersonName === currentUser.name
+      );
+    } else if (salespersonId && salespersonId !== "ALL") {
+      payments = payments.filter((p: any) => String(p.salespersonId) === String(salespersonId));
     }
 
     return NextResponse.json({ payments });

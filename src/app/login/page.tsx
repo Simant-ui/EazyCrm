@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { ShieldCheck, LogIn, Sparkles, UserCheck, Key, Lock, Mail } from "lucide-react";
@@ -9,9 +9,21 @@ import { toast } from "sonner";
 export default function LoginPage() {
   const router = useRouter();
   const { login, switchUser } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@eazybox.com");
+  const [password, setPassword] = useState("P@ss-W0rd");
   const [loading, setLoading] = useState(false);
+  const [dynamicAccounts, setDynamicAccounts] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/team")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.users) && data.users.length > 0) {
+          setDynamicAccounts(data.users);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,32 +44,37 @@ export default function LoginPage() {
     }
   };
 
-  const demoAccounts = [
-    {
-      name: "Admin User",
-      email: "admin@eazybox.com",
-      role: "ADMIN",
-      title: "System Owner",
-      color: "from-blue-600 to-indigo-600",
-      badge: "Full Access",
-    },
-    {
-      name: "Prabin Sharma",
-      email: "prabin@eazybox.com",
-      role: "SALES_MANAGER",
-      title: "Sales Manager",
-      color: "from-purple-600 to-pink-600",
-      badge: "Team Leader",
-    },
-    {
-      name: "Aayusha Paudel",
-      email: "aayusha@eazybox.com",
-      role: "SALES_EXECUTIVE",
-      title: "Sales Executive",
-      color: "from-emerald-600 to-teal-600",
-      badge: "Individual Rep",
-    },
-  ];
+  const demoAccounts = dynamicAccounts.length > 0
+    ? dynamicAccounts.map((u) => ({
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        badge: u.role === "ADMIN" ? "Full Access" : u.role === "SALES_MANAGER" ? "Manager" : "Executive",
+        color: u.role === "ADMIN" ? "from-blue-600 to-indigo-600" : u.role === "SALES_MANAGER" ? "from-purple-600 to-pink-600" : "from-emerald-600 to-teal-600",
+      }))
+    : [
+        {
+          name: "Admin User",
+          email: "admin@eazybox.com",
+          role: "ADMIN",
+          badge: "Full Access",
+          color: "from-blue-600 to-indigo-600",
+        },
+        {
+          name: "Prabin Sharma",
+          email: "prabin@eazybox.com",
+          role: "SALES_MANAGER",
+          badge: "Team Leader",
+          color: "from-purple-600 to-pink-600",
+        },
+        {
+          name: "Aayusha Paudel",
+          email: "aayusha@eazybox.com",
+          role: "SALES_EXECUTIVE",
+          badge: "Individual Rep",
+          color: "from-emerald-600 to-teal-600",
+        },
+      ];
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-gradient-to-br from-background via-card to-background relative overflow-hidden">
@@ -83,11 +100,11 @@ export default function LoginPage() {
           {/* Quick Demo Switcher */}
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              <span>Quick Login As</span>
+              <span>Quick Login / Switch As</span>
               <Sparkles size={14} className="text-amber-500" />
             </div>
 
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto pr-1">
               {demoAccounts.map((demo) => (
                 <button
                   key={demo.email}

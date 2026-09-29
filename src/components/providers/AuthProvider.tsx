@@ -2,22 +2,24 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { UserSession, DEFAULT_DEMO_USER } from "@/lib/auth";
-import { Role, ModuleName, PermissionAction, hasPermission as checkPermission } from "@/lib/permissions";
+import { ModuleName, PermissionAction, hasPermission as checkPermission } from "@/lib/permissions";
 import { toast } from "sonner";
 
 interface AuthContextType {
   user: UserSession;
+  isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
-  switchUser: (email: string) => Promise<void>;
+  switchUser: (identifier: string) => Promise<void>;
   logout: () => Promise<void>;
-  hasPermission: (moduleName: ModuleName, action: PermissionAction) => boolean;
+  hasPermission: (moduleName: ModuleName | string, action?: PermissionAction | string) => boolean;
   refetchUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: DEFAULT_DEMO_USER,
-  loading: false,
+  isAuthenticated: false,
+  loading: true,
   login: async () => false,
   switchUser: async () => {},
   logout: async () => {},
@@ -27,6 +29,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession>(DEFAULT_DEMO_USER);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   const fetchUser = async () => {
@@ -34,12 +37,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
-        if (data.user) {
-          setUser(data.user);
+        if (data.authenticated && data.user) {
+          if (data.user.status === "INACTIVE") {
+            toast.error("Your account has been deactivated. Please contact the administrator.");
+            setIsAuthenticated(false);
+          } else {
+            setUser(data.user);
+            setIsAuthenticated(true);
+          }
+        } else {
+          setIsAuthenticated(false);
         }
+      } else {
+        setIsAuthenticated(false);
       }
     } catch (e) {
       console.error("Auth fetch failed:", e);
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }
@@ -61,7 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        if (data.user?.status === "INACTIVE") {
+          toast.error("Your account has been deactivated. Please contact the administrator.");
+          return false;
+        }
         setUser(data.user);
+        setIsAuthenticated(true);
         toast.success(`Welcome back, ${data.user.name}!`);
         return true;
       } else {
@@ -76,18 +95,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const switchUser = async (email: string) => {
+  const switchUser = async (identifier: string) => {
     try {
       setLoading(true);
       const res = await fetch("/api/auth/switch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email: identifier,
+          userId: identifier,
+          role: identifier,
+          identifier: identifier,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
+        if (data.user?.status === "INACTIVE") {
+          toast.error("Cannot switch to deactivated account!");
+          return;
+        }
         setUser(data.user);
-        toast.success(`Switched account to ${data.user.name} (${data.user.role})`);
+        const roleLabel = (data.user.role || "").replace("_", " ");
+        toast.success(`Switched account to ${data.user.name} (${roleLabel})`);
         window.location.reload();
       } else {
         toast.error(data.error || "Failed to switch user account");
@@ -109,14 +138,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const checkUserPermission = (moduleName: ModuleName, action: PermissionAction): boolean => {
-    return checkPermission(user.role, user.permissions, moduleName, action);
+  const checkUserPermission = (moduleName: ModuleName | string, action: PermissionAction | string = "view"): boolean => {
+    return checkPermission(user, moduleName, action);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        isAuthenticated,
         loading,
         login,
         switchUser,

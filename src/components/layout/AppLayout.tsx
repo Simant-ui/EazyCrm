@@ -1,19 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { CommandPalette } from "./CommandPalette";
-import { X, ShieldAlert, Lock, ArrowLeft, Mail } from "lucide-react";
+import { X, ShieldAlert, ArrowLeft, Mail, Lock } from "lucide-react";
 import { AddSaleModal } from "@/components/sales/AddSaleModal";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { ModuleName } from "@/lib/permissions";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
-  const { user, hasPermission } = useAuth();
+  const { user, isAuthenticated, loading, hasPermission } = useAuth();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -27,16 +28,39 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    if (!loading && !isAuthenticated && pathname !== "/login") {
+      router.replace("/login");
+    }
+  }, [loading, isAuthenticated, pathname, router]);
+
   const toggleCollapsed = (state: boolean) => {
     setCollapsed(state);
     localStorage.setItem("eazybox_sidebar_collapsed", JSON.stringify(state));
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-semibold text-muted-foreground">Verifying session & security permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated && pathname !== "/login") {
+    return null;
+  }
 
   // Map route path to permission module name
   const getModuleNameForPath = (path: string): ModuleName | null => {
     if (path.startsWith("/sales")) return "sales";
     if (path.startsWith("/leads")) return "leads";
     if (path.startsWith("/customers")) return "customers";
+    if (path.startsWith("/products")) return "products";
+    if (path.startsWith("/ncm")) return "ncm";
     if (path.startsWith("/commission")) return "commission";
     if (path.startsWith("/marketing")) return "marketing";
     if (path.startsWith("/team")) return "team";
@@ -47,7 +71,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const targetModule = getModuleNameForPath(pathname);
-  const isAuthorized = targetModule ? hasPermission(targetModule, "viewOwn") : true;
+  const isAuthorized = targetModule ? hasPermission(targetModule, "view") : true;
 
   return (
     <div className="min-h-screen flex bg-background text-foreground transition-colors duration-200">
@@ -99,39 +123,39 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             children
           ) : (
             <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-full max-w-lg p-8 rounded-3xl bg-card border border-border shadow-xl space-y-6">
+              <div className="w-full max-w-lg p-8 rounded-3xl bg-card border border-border shadow-2xl space-y-6">
                 <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
-                  <ShieldAlert size={32} />
+                  <ShieldAlert size={36} />
                 </div>
 
                 <div className="space-y-2">
                   <span className="inline-block px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-xs uppercase tracking-wider">
-                    Access Restricted
+                    Access Denied (403)
                   </span>
-                  <h2 className="text-xl font-black text-foreground">Unauthorized Access</h2>
+                  <h2 className="text-2xl font-extrabold text-foreground tracking-tight">Permission Restricted</h2>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    You do not have permission to access the <strong className="text-foreground capitalize">{targetModule?.replace("_", " ")}</strong> module with your current account ({user.name} — <span className="capitalize">{user.role.replace("_", " ")}</span>).
+                    You don't have permission to access the <strong className="text-foreground capitalize">{targetModule?.replace("_", " ")}</strong> module with your current account (<span className="font-semibold text-foreground">{user.name}</span> — <span className="capitalize">{user.role.replace("_", " ")}</span>).
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-accent/50 border border-border/60 text-xs text-left space-y-2">
+                <div className="p-4 rounded-2xl bg-accent/40 border border-border/80 text-xs text-left space-y-2">
                   <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Mail size={14} className="text-emerald-500" /> Need access to this module?
+                    <Lock size={14} className="text-amber-500" /> Need access to this module?
                   </div>
                   <p className="text-muted-foreground text-[11px]">
-                    Please contact your System Administrator to update your permissions for this account.
+                    Your System Administrator can update your account permissions from the Team Management matrix.
                   </p>
                   <div className="font-mono text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    Contact Admin: admin@eazybox.com
+                    Administrator: admin@eazybox.com
                   </div>
                 </div>
 
                 <div className="pt-2">
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-colors"
                   >
-                    <ArrowLeft size={16} /> Return to Dashboard
+                    <ArrowLeft size={16} /> Go to Dashboard
                   </Link>
                 </div>
               </div>

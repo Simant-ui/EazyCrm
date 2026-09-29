@@ -11,7 +11,17 @@ export async function GET(req: NextRequest) {
     const salesperson = searchParams.get("salesperson") || "";
     const status = searchParams.get("status") || "";
 
+    const currentUser = await getCurrentUser();
     let leads = await getLeads();
+
+    // Role-based data scoping: Non-admin users only see their own assigned leads!
+    if (currentUser.role !== "ADMIN") {
+      leads = leads.filter(
+        (l: any) =>
+          String(l.salespersonId) === String(currentUser.id) ||
+          l.salespersonName === currentUser.name
+      );
+    }
 
     if (search) {
       const q = search.toLowerCase();

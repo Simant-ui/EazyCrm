@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSales, getUsers, getCustomers, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Sale, Customer, AuditLog } from "@/lib/models";
 import { calculateCommission } from "@/lib/business";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requirePermission } from "@/lib/auth";
 import { createNcmOrder } from "@/lib/ncm";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("sales", "view");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to view sales." }, { status: 403 });
+    }
     await connectDB();
-    const currentUser = await getCurrentUser();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const salesperson = searchParams.get("salesperson") || "";
@@ -18,10 +23,10 @@ export async function GET(req: NextRequest) {
     let sales = await getSales();
 
     // Role-based data scoping: Non-admin users only see their own sales!
-    if (currentUser.role === "SALES_EXECUTIVE") {
+    if (currentUser.role !== "ADMIN") {
       sales = sales.filter(
         (s: any) =>
-          s.salespersonId === currentUser.id ||
+          String(s.salespersonId) === String(currentUser.id) ||
           s.salespersonName === currentUser.name ||
           (currentUser.email && s.salespersonEmail === currentUser.email)
       );
@@ -57,8 +62,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("sales", "create");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to create sales." }, { status: 403 });
+    }
     await connectDB();
-    const currentUser = await getCurrentUser();
     const body = await req.json();
 
     const {

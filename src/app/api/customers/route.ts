@@ -9,7 +9,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
 
+    const currentUser = await getCurrentUser();
     let customers = await getCustomers();
+
+    // Role-based data scoping: Non-admin users only see their own assigned customers!
+    if (currentUser.role !== "ADMIN") {
+      customers = customers.filter(
+        (c: any) =>
+          String(c.salespersonId) === String(currentUser.id) ||
+          c.salespersonName === currentUser.name
+      );
+    }
 
     if (search) {
       const q = search.toLowerCase();

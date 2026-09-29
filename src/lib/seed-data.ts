@@ -2,9 +2,9 @@ export const SEED_USERS = [
   {
     _id: "user_admin_01",
     name: "Admin User",
-    email: "admin@eazybox.com",
+    email: process.env.ADMIN_USERNAME || "admin@eazybox.com",
     mobile: "9800000001",
-    password: "Password@123",
+    password: process.env.ADMIN_PASSWORD || "P@ss-W0rd",
     role: "ADMIN",
     department: "Executive Management",
     status: "ACTIVE",

@@ -25,6 +25,7 @@ import { formatCurrency, formatDate, getInitials, exportToCSV } from "@/lib/util
 import { ORDER_STATUS_CONFIG } from "@/lib/business";
 import { toast } from "sonner";
 import { AddSaleModal } from "./AddSaleModal";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 const DEFAULT_NCM_BRANCHES = [
   "KATHMANDU",
@@ -49,6 +50,7 @@ const DEFAULT_NCM_BRANCHES = [
 ];
 
 export function SalesPageContent() {
+  const { hasPermission } = useAuth();
   const [sales, setSales] = useState<any[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [ncmBranches, setNcmBranches] = useState<string[]>(DEFAULT_NCM_BRANCHES);
@@ -262,18 +264,22 @@ export function SalesPageContent() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-card border border-border text-foreground font-semibold text-xs hover:bg-accent transition-colors shadow-sm"
-          >
-            <Download size={15} /> Export CSV
-          </button>
-          <button
-            onClick={() => setAddSaleOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-md shadow-primary/20 hover:bg-primary-hover transition-colors"
-          >
-            <Plus size={16} /> Add Sale
-          </button>
+          {hasPermission("sales", "export") && (
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-card border border-border text-foreground font-semibold text-xs hover:bg-accent transition-colors shadow-sm"
+            >
+              <Download size={15} /> Export CSV
+            </button>
+          )}
+          {hasPermission("sales", "create") && (
+            <button
+              onClick={() => setAddSaleOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-md shadow-primary/20 hover:bg-primary-hover transition-colors"
+            >
+              <Plus size={16} /> Add Sale
+            </button>
+          )}
         </div>
       </div>
 

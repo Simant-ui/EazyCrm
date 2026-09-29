@@ -19,6 +19,7 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema<IUser>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     mobile: { type: String, required: true },
@@ -73,6 +74,7 @@ export interface ISale extends Document {
 
 const SaleSchema = new Schema<ISale>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     saleId: { type: String, required: true, unique: true },
     customerName: { type: String, required: true },
     customerMobile: { type: String, required: true },
@@ -131,6 +133,7 @@ export interface ICustomer extends Document {
 
 const CustomerSchema = new Schema<ICustomer>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     name: { type: String, required: true },
     mobile: { type: String, required: true, unique: true },
     email: { type: String, default: "" },
@@ -187,6 +190,7 @@ export interface ILead extends Document {
 
 const LeadSchema = new Schema<ILead>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     name: { type: String, required: true },
     mobile: { type: String, required: true },
     email: { type: String, default: "" },
@@ -247,6 +251,7 @@ export interface ICampaign extends Document {
 
 const CampaignSchema = new Schema<ICampaign>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     name: { type: String, required: true },
     platform: { type: String, default: "Meta Ads" },
     budget: { type: Number, default: 0 },
@@ -277,6 +282,7 @@ export interface ICommissionPayment extends Document {
 
 const CommissionPaymentSchema = new Schema<ICommissionPayment>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     salespersonId: { type: String, required: true },
     salespersonName: { type: String, required: true },
     amount: { type: Number, required: true },
@@ -303,6 +309,7 @@ export interface IAuditLog extends Document {
 
 const AuditLogSchema = new Schema<IAuditLog>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     userId: { type: String, required: true },
     userName: { type: String, required: true },
     userRole: { type: String, required: true },
@@ -328,6 +335,7 @@ export interface INotification extends Document {
 
 const NotificationSchema = new Schema<INotification>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     title: { type: String, required: true },
     message: { type: String, required: true },
     type: { type: String, enum: ["info", "success", "warning", "error"], default: "info" },
@@ -356,6 +364,7 @@ export interface IProduct extends Document {
 
 const ProductSchema = new Schema<IProduct>(
   {
+    _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
     name: { type: String, required: true },
     sku: { type: String, required: true, unique: true },
     category: { type: String, default: "Hardware" },
@@ -369,16 +378,32 @@ const ProductSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
-// Prevent re-registering models during hot reloading
-export const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
-export const Sale: Model<ISale> = mongoose.models.Sale || mongoose.model<ISale>("Sale", SaleSchema);
-export const Customer: Model<ICustomer> = mongoose.models.Customer || mongoose.model<ICustomer>("Customer", CustomerSchema);
-export const Lead: Model<ILead> = mongoose.models.Lead || mongoose.model<ILead>("Lead", LeadSchema);
-export const Campaign: Model<ICampaign> = mongoose.models.Campaign || mongoose.model<ICampaign>("Campaign", CampaignSchema);
-export const CommissionPayment: Model<ICommissionPayment> =
-  mongoose.models.CommissionPayment || mongoose.model<ICommissionPayment>("CommissionPayment", CommissionPaymentSchema);
-export const AuditLog: Model<IAuditLog> = mongoose.models.AuditLog || mongoose.model<IAuditLog>("AuditLog", AuditLogSchema);
-export const Notification: Model<INotification> =
-  mongoose.models.Notification || mongoose.model<INotification>("Notification", NotificationSchema);
-export const Product: Model<IProduct> =
-  mongoose.models.Product || mongoose.model<IProduct>("Product", ProductSchema);
+// Clear model cache in development to ensure schema changes take effect immediately
+if (process.env.NODE_ENV !== "production" && typeof window === "undefined" && mongoose && mongoose.models) {
+  delete (mongoose.models as any).User;
+  delete (mongoose.models as any).Sale;
+  delete (mongoose.models as any).Customer;
+  delete (mongoose.models as any).Lead;
+  delete (mongoose.models as any).Campaign;
+  delete (mongoose.models as any).CommissionPayment;
+  delete (mongoose.models as any).AuditLog;
+  delete (mongoose.models as any).Notification;
+  delete (mongoose.models as any).Product;
+}
+
+const getModel = <T>(name: string, schema: Schema<T>): Model<T> => {
+  if (typeof window !== "undefined" || !mongoose || !mongoose.models) {
+    return {} as Model<T>;
+  }
+  return (mongoose.models[name] as Model<T>) || mongoose.model<T>(name, schema);
+};
+
+export const User: Model<IUser> = getModel("User", UserSchema);
+export const Sale: Model<ISale> = getModel("Sale", SaleSchema);
+export const Customer: Model<ICustomer> = getModel("Customer", CustomerSchema);
+export const Lead: Model<ILead> = getModel("Lead", LeadSchema);
+export const Campaign: Model<ICampaign> = getModel("Campaign", CampaignSchema);
+export const CommissionPayment: Model<ICommissionPayment> = getModel("CommissionPayment", CommissionPaymentSchema);
+export const AuditLog: Model<IAuditLog> = getModel("AuditLog", AuditLogSchema);
+export const Notification: Model<INotification> = getModel("Notification", NotificationSchema);
+export const Product: Model<IProduct> = getModel("Product", ProductSchema);

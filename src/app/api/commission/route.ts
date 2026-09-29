@@ -13,10 +13,10 @@ export async function GET(req: NextRequest) {
     let commissions = await getCommissions();
 
     // Role-based data scoping: Non-admin staff only see their own commission data!
-    if (currentUser.role === "SALES_EXECUTIVE") {
-      users = users.filter((u: any) => u._id === currentUser.id || u.name === currentUser.name);
-      payments = payments.filter((p: any) => p.salespersonId === currentUser.id || p.salespersonName === currentUser.name);
-      commissions = commissions.filter((c: any) => c.memberId === currentUser.id || c.memberName === currentUser.name);
+    if (currentUser.role !== "ADMIN") {
+      users = users.filter((u: any) => String(u._id) === String(currentUser.id) || u.name === currentUser.name);
+      payments = payments.filter((p: any) => String(p.salespersonId) === String(currentUser.id) || p.salespersonName === currentUser.name);
+      commissions = commissions.filter((c: any) => String(c.memberId) === String(currentUser.id) || c.memberName === currentUser.name);
     }
 
     // Calculate commission summaries per salesperson using DELIVERED status rule!

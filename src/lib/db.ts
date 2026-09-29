@@ -24,7 +24,10 @@ import {
 const MONGODB_URI = process.env.MONGODB_URI || "";
 
 let isConnected = false;
-let memoryStoreInitialized = false;
+let connectionPromise: Promise<boolean> | null = null;
+let lastAttemptTime = 0;
+let hasAttempted = false;
+let seedCompleted = false;
 
 // In-Memory store fallback
 export const memoryStore: {
@@ -52,33 +55,58 @@ export const memoryStore: {
 export async function connectDB() {
   if ((mongoose.connection.readyState as number) === 1) {
     isConnected = true;
-    return;
+    if (!seedCompleted) {
+      seedCompleted = true;
+      await seedAllMongoCollections().catch(() => {});
+    }
+    return true;
+  }
+
+  // If connection failed recently (within 30 seconds), fail-fast to Memory Store instantly (0ms delay)
+  const now = Date.now();
+  if (hasAttempted && !isConnected && now - lastAttemptTime < 30000) {
+    return false;
+  }
+
+  if (connectionPromise) {
+    return await connectionPromise;
   }
 
   if (MONGODB_URI) {
-    try {
-      if ((mongoose.connection.readyState as number) === 0) {
-        await mongoose.connect(MONGODB_URI, {
-          bufferCommands: false,
-          serverSelectionTimeoutMS: 10000,
-        });
+    connectionPromise = (async () => {
+      try {
+        lastAttemptTime = Date.now();
+        hasAttempted = true;
+
+        if ((mongoose.connection.readyState as number) === 0) {
+          await mongoose.connect(MONGODB_URI, {
+            bufferCommands: false,
+            serverSelectionTimeoutMS: 2500, // Fast 2.5s timeout instead of 10s hang
+          });
+        }
+
+        if ((mongoose.connection.readyState as number) === 1) {
+          isConnected = true;
+          console.log("Connected to MongoDB Atlas");
+          if (!seedCompleted) {
+            seedCompleted = true;
+            await seedAllMongoCollections().catch(() => {});
+          }
+          return true;
+        }
+      } catch (error: any) {
+        console.warn("MongoDB Atlas connection unavailable (using instant Memory Store mode):", error.message);
+        isConnected = false;
+      } finally {
+        connectionPromise = null;
       }
-      if ((mongoose.connection.readyState as number) === 1) {
-        isConnected = true;
-        console.log("Connected to MongoDB Atlas");
-        await seedAllMongoCollections();
-        return;
-      }
-    } catch (error) {
-      console.warn("MongoDB connection failed, falling back to Memory Store mode:", error);
-      isConnected = false;
-    }
+      return false;
+    })();
+
+    return await connectionPromise;
   }
 
-  // Memory fallback
-  if (!memoryStoreInitialized) {
-    memoryStoreInitialized = true;
-  }
+  return false;
 }
 
 // Check if database is using real Mongoose or Memory Fallback
@@ -91,90 +119,67 @@ export async function seedAllMongoCollections(force = false) {
 
   const counts: Record<string, number> = {};
 
-  // Users
-  const userCount = await User.countDocuments();
-  if (userCount === 0 || force) {
-    if (force && userCount > 0) await User.deleteMany({});
-    await User.insertMany(SEED_USERS);
-  }
-  counts.users = await User.countDocuments();
+  try {
+    // Users (Must have Admin and Team Users)
+    const userCount = await User.countDocuments();
+    if (userCount === 0 || force) {
+      if (force && userCount > 0) await User.deleteMany({});
+      if (SEED_USERS.length > 0) await User.insertMany(SEED_USERS);
+    }
+    counts.users = await User.countDocuments();
 
-  // Sales
-  const saleCount = await Sale.countDocuments();
-  if (saleCount === 0 || force) {
-    if (force && saleCount > 0) await Sale.deleteMany({});
-    await Sale.insertMany(SEED_SALES);
-  }
-  counts.sales = await Sale.countDocuments();
+    // Products (Catalog)
+    const prodCount = await Product.countDocuments();
+    if (prodCount === 0 || force) {
+      if (force && prodCount > 0) await Product.deleteMany({});
+      if (SEED_PRODUCTS.length > 0) await Product.insertMany(SEED_PRODUCTS);
+    }
+    counts.products = await Product.countDocuments();
 
-  // Customers
-  const customerCount = await Customer.countDocuments();
-  if (customerCount === 0 || force) {
-    if (force && customerCount > 0) await Customer.deleteMany({});
-    await Customer.insertMany(SEED_CUSTOMERS);
-  }
-  counts.customers = await Customer.countDocuments();
+    // Sales (Operational - Starts Clean)
+    if (force) {
+      await Sale.deleteMany({});
+    }
+    counts.sales = await Sale.countDocuments();
 
-  // Leads
-  const leadCount = await Lead.countDocuments();
-  if (leadCount === 0 || force) {
-    if (force && leadCount > 0) await Lead.deleteMany({});
-    await Lead.insertMany(SEED_LEADS);
-  }
-  counts.leads = await Lead.countDocuments();
+    // Customers (Operational - Starts Clean)
+    if (force) {
+      await Customer.deleteMany({});
+    }
+    counts.customers = await Customer.countDocuments();
 
-  // Campaigns
-  const campaignCount = await Campaign.countDocuments();
-  if (campaignCount === 0 || force) {
-    if (force && campaignCount > 0) await Campaign.deleteMany({});
-    await Campaign.insertMany(SEED_CAMPAIGNS);
-  }
-  counts.campaigns = await Campaign.countDocuments();
+    // Leads (Operational - Starts Clean)
+    if (force) {
+      await Lead.deleteMany({});
+    }
+    counts.leads = await Lead.countDocuments();
 
-  // Payments
-  const paymentCount = await CommissionPayment.countDocuments();
-  if (paymentCount === 0 || force) {
-    if (force && paymentCount > 0) await CommissionPayment.deleteMany({});
-    await CommissionPayment.insertMany(SEED_PAYMENTS);
-  }
-  counts.payments = await CommissionPayment.countDocuments();
+    // Campaigns (Operational - Starts Clean)
+    if (force) {
+      await Campaign.deleteMany({});
+    }
+    counts.campaigns = await Campaign.countDocuments();
 
-  // Audit Logs
-  const logCount = await AuditLog.countDocuments();
-  if (logCount === 0 || force) {
-    if (force && logCount > 0) await AuditLog.deleteMany({});
-    await AuditLog.insertMany(SEED_AUDIT_LOGS);
-  }
-  counts.auditLogs = await AuditLog.countDocuments();
+    // Payments (Operational - Starts Clean)
+    if (force) {
+      await CommissionPayment.deleteMany({});
+    }
+    counts.payments = await CommissionPayment.countDocuments();
 
-  // Products
-  const prodCount = await Product.countDocuments();
-  if (prodCount === 0 || force) {
-    if (force && prodCount > 0) await Product.deleteMany({});
-    await Product.insertMany(SEED_PRODUCTS);
-  }
-  counts.products = await Product.countDocuments();
+    // Audit Logs (Operational - Starts Clean)
+    if (force) {
+      await AuditLog.deleteMany({});
+    }
+    counts.auditLogs = await AuditLog.countDocuments();
 
-  // Notifications
-  const notifCount = await Notification.countDocuments();
-  if (notifCount === 0 || force) {
-    if (force && notifCount > 0) await Notification.deleteMany({});
-    await Notification.insertMany([
-      {
-        title: "New Lead Assigned",
-        message: "Greenland Departmental Store assigned to Aayusha.",
-        type: "info",
-        isRead: false,
-      },
-      {
-        title: "Sale Confirmed",
-        message: "Sale #EZ-1004 confirmed for Apex Electronics Hub.",
-        type: "success",
-        isRead: true,
-      },
-    ]);
+    // Notifications (Operational - Starts Clean)
+    if (force) {
+      await Notification.deleteMany({});
+    }
+    counts.notifications = await Notification.countDocuments();
+  } catch (e: any) {
+    console.warn("MongoDB collection seeding warning:", e.message);
   }
-  counts.notifications = await Notification.countDocuments();
 
   return counts;
 }

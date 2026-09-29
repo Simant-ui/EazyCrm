@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NCMClient } from "@/lib/ncm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;

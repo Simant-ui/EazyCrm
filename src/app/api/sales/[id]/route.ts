@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Sale, AuditLog } from "@/lib/models";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requirePermission } from "@/lib/auth";
 import { createNcmOrder } from "@/lib/ncm";
 import { calculateAndSaveCommissionForSale } from "@/lib/commission-engine";
 
+export const dynamic = "force-dynamic";
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("sales", "edit");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to edit sales." }, { status: 403 });
+    }
     await connectDB();
     const { id } = await params;
     const body = await req.json();
-    const currentUser = await getCurrentUser();
 
     if (isMongoConnected()) {
       const sale = await Sale.findById(id) || await Sale.findOne({ saleId: id });
@@ -109,9 +114,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("sales", "delete");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to delete sales." }, { status: 403 });
+    }
     await connectDB();
     const { id } = await params;
-    const currentUser = await getCurrentUser();
 
     if (isMongoConnected()) {
       const sale = await Sale.findById(id) || await Sale.findOne({ saleId: id });

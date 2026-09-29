@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUsers, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { User, AuditLog } from "@/lib/models";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requirePermission } from "@/lib/auth";
 import { sendWelcomeEmail } from "@/lib/email";
+
+import mongoose from "mongoose";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const { allowed } = await requirePermission("team", "view");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to view team members." }, { status: 403 });
+    }
     const users = await getUsers();
     return NextResponse.json({ users });
   } catch (error: any) {
@@ -15,8 +23,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("team", "create");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to create team members." }, { status: 403 });
+    }
     await connectDB();
-    const currentUser = await getCurrentUser();
     const body = await req.json();
 
     const {
@@ -38,7 +49,9 @@ export async function POST(req: NextRequest) {
     const cleanEmail = email.trim().toLowerCase();
     const cleanMobile = mobile.trim();
 
+    const newId = new mongoose.Types.ObjectId().toString();
     const userData = {
+      _id: newId,
       name: name.trim(),
       email: cleanEmail,
       mobile: cleanMobile,
@@ -80,7 +93,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `A user with email '${cleanEmail}' already exists.` }, { status: 400 });
       }
 
-      const userWithId = { _id: `user_${Date.now()}`, ...userData };
+      const userWithId = userData;
       memoryStore.users.push(userWithId);
       memoryStore.auditLogs.unshift({
         _id: `log_${Date.now()}`,

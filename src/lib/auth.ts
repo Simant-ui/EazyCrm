@@ -1,5 +1,4 @@
 import { SignJWT, jwtVerify } from "jose";
-import { getUsers } from "./db";
 import { Role, PermissionMatrix, hasPermission, ModuleName, PermissionAction } from "./permissions";
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "eazybox-secret-key-2026-super-secure");
@@ -11,8 +10,9 @@ export interface UserSession {
   mobile: string;
   role: Role;
   department: string;
+  status?: string;
   avatarUrl?: string;
-  permissions?: Partial<PermissionMatrix>;
+  permissions?: Partial<PermissionMatrix> | string[];
 }
 
 export async function createSessionToken(user: UserSession): Promise<string> {
@@ -32,14 +32,15 @@ export async function verifySessionToken(token: string): Promise<UserSession | n
   }
 }
 
-// Default session fallback if not logged in (starts with Admin for smooth demo experience)
+// Default session fallback for UI rendering
 export const DEFAULT_DEMO_USER: UserSession = {
   id: "user_admin_01",
   name: "Admin User",
-  email: "admin@eazybox.com",
+  email: process.env.ADMIN_USERNAME || "admin@eazybox.com",
   mobile: "9800000001",
   role: "ADMIN",
   department: "Executive Management",
+  status: "ACTIVE",
   avatarUrl: "",
 };
 
@@ -50,7 +51,32 @@ export async function getCurrentUser(): Promise<UserSession> {
     const token = cookieStore.get("eazybox_session")?.value;
     if (token) {
       const verified = await verifySessionToken(token);
-      if (verified) return verified;
+      if (verified) {
+        // Real-time lookup to verify active status & latest DB permissions
+        try {
+          const { getUsers } = await import("./db");
+          const users = await getUsers();
+          const freshUser = users.find(
+            (u: any) => String(u._id) === String(verified.id) || u.email.toLowerCase() === verified.email.toLowerCase()
+          );
+          if (freshUser) {
+            return {
+              id: String(freshUser._id),
+              name: freshUser.name,
+              email: freshUser.email,
+              mobile: freshUser.mobile,
+              role: freshUser.role as Role,
+              department: freshUser.department || "Sales",
+              status: freshUser.status || "ACTIVE",
+              avatarUrl: freshUser.avatarUrl,
+              permissions: freshUser.permissions,
+            };
+          }
+        } catch (e) {
+          // If DB fetch temporary fails, use verified token payload
+        }
+        return verified;
+      }
     }
   } catch (e) {
     // SSR / Edge safe
@@ -59,10 +85,13 @@ export async function getCurrentUser(): Promise<UserSession> {
 }
 
 export async function requirePermission(
-  moduleName: ModuleName,
-  action: PermissionAction
+  moduleName: ModuleName | string,
+  action: PermissionAction | string = "view"
 ): Promise<{ user: UserSession; allowed: boolean }> {
   const user = await getCurrentUser();
-  const allowed = hasPermission(user.role, user.permissions, moduleName, action);
+  if (user.status === "INACTIVE") {
+    return { user, allowed: false };
+  }
+  const allowed = hasPermission(user, moduleName, action);
   return { user, allowed };
 }

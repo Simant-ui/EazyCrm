@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProducts, connectDB, isMongoConnected, memoryStore } from "@/lib/db";
 import { Product, AuditLog } from "@/lib/models";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requirePermission } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const { allowed } = await requirePermission("products", "view");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to view products." }, { status: 403 });
+    }
     const products = await getProducts();
     return NextResponse.json({ products });
   } catch (error: any) {
@@ -14,8 +20,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("products", "create");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to create products." }, { status: 403 });
+    }
     await connectDB();
-    const currentUser = await getCurrentUser();
     const body = await req.json();
 
     const {
@@ -75,8 +84,11 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("products", "edit");
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to edit products." }, { status: 403 });
+    }
     await connectDB();
-    const currentUser = await getCurrentUser();
     const body = await req.json();
     const { _id, ...updateData } = body;
 
