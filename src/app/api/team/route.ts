@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       email,
       mobile,
       password = "Password@123",
-      role = "SALES_EXECUTIVE",
+      role = "MEMBER",
       department = "Sales",
       status = "ACTIVE",
       avatarUrl = "",
