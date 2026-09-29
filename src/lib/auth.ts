@@ -32,7 +32,6 @@ export async function verifySessionToken(token: string): Promise<UserSession | n
   }
 }
 
-// Default session fallback for UI rendering
 export const DEFAULT_DEMO_USER: UserSession = {
   id: "user_admin_01",
   name: "Admin User",
@@ -44,7 +43,7 @@ export const DEFAULT_DEMO_USER: UserSession = {
   avatarUrl: "",
 };
 
-export async function getCurrentUser(): Promise<UserSession> {
+export async function getCurrentUser(): Promise<UserSession | null> {
   try {
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
@@ -81,7 +80,7 @@ export async function getCurrentUser(): Promise<UserSession> {
   } catch (e) {
     // SSR / Edge safe
   }
-  return DEFAULT_DEMO_USER;
+  return null; // Return null if unauthenticated (no demo fallback for new devices)
 }
 
 export async function requirePermission(
@@ -89,8 +88,8 @@ export async function requirePermission(
   action: PermissionAction | string = "view"
 ): Promise<{ user: UserSession; allowed: boolean }> {
   const user = await getCurrentUser();
-  if (user.status === "INACTIVE") {
-    return { user, allowed: false };
+  if (!user || user.status === "INACTIVE") {
+    return { user: (user || DEFAULT_DEMO_USER) as UserSession, allowed: false };
   }
   const allowed = hasPermission(user, moduleName, action);
   return { user, allowed };
