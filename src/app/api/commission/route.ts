@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
         commissionRate: user.commissionRate || 5,
         unitsSold,
         salesCount: allUserSales.length,
-        deliveredCount: deliveredSales.length,
+        deliveredCount: activeSales.length,
         totalRevenue,
         totalCommission,
         paid: paidAmount,
