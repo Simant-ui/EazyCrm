@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSales, getLeads, getUsers, getPayments } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const { allowed, user: currentUser } = await requirePermission("reports", "view");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to view reports." }, { status: 403 });
+    }
     const { searchParams } = new URL(req.url);
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
 
-    const currentUser = await getCurrentUser();
     let allSales = await getSales();
     let allLeads = await getLeads();
     let allUsers = await getUsers();

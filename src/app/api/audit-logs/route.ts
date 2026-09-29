@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { getAuditLogs } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const currentUser = await getCurrentUser();
+    const { allowed, user: currentUser } = await requirePermission("audit_logs", "view");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to view audit logs." }, { status: 403 });
+    }
     let logs = await getAuditLogs();
 
     if (currentUser.role !== "ADMIN") {
