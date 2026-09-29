@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSales, getUsers, getPayments, isMongoConnected, memoryStore } from "@/lib/db";
 import { CommissionPayment, AuditLog } from "@/lib/models";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getCommissions } from "@/lib/commission-engine";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const currentUser = await getCurrentUser();
+    const { allowed, user: currentUser } = await requirePermission("commission", "view");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to view commission." }, { status: 403 });
+    }
     const sales = await getSales();
     let users = await getUsers();
     let payments = await getPayments();
@@ -90,7 +95,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const currentUser = await getCurrentUser();
+    const { allowed, user: currentUser } = await requirePermission("commission", "create");
+    if (!allowed || !currentUser) {
+      return NextResponse.json({ success: false, error: "Access Denied: You do not have permission to record commission payments." }, { status: 403 });
+    }
     const body = await req.json();
 
     const { salespersonId, salespersonName, amount, paymentMethod = "Bank Transfer", date, reference = "", remark = "" } = body;
