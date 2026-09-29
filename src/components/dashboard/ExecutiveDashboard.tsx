@@ -86,7 +86,7 @@ export function ExecutiveDashboard() {
         totalSales: validSales.length,
         totalRevenue: rev,
         totalCommission: comm,
-        pendingCommission: commTotals.pendingCommission || 25500,
+        pendingCommission: typeof commTotals.pendingCommission === "number" ? commTotals.pendingCommission : 0,
         totalCustomers: customers.length,
         totalLeads: leads.length,
       });
@@ -94,17 +94,24 @@ export function ExecutiveDashboard() {
       setSalesList(sales.slice(0, 6));
       setTeamPerformance(teamMembers);
 
-      // Generate realistic daily trend chart data
-      const sampleDays = [
-        { date: "Sep 21", revenue: 96500, units: 11, commission: 7700 },
-        { date: "Sep 22", revenue: 112000, units: 13, commission: 8900 },
-        { date: "Sep 23", revenue: 85000, units: 10, commission: 6800 },
-        { date: "Sep 24", revenue: 145000, units: 17, commission: 11500 },
-        { date: "Sep 25", revenue: 128000, units: 15, commission: 10200 },
-        { date: "Sep 26", revenue: 168000, units: 19, commission: 13300 },
-        { date: "Sep 27", revenue: 192000, units: 22, commission: 15100 },
-      ];
-      setChartData(sampleDays);
+      // Generate daily trend chart data dynamically from actual sales
+      const salesByDate: Record<string, { revenue: number; units: number; commission: number }> = {};
+      validSales.forEach((s: any) => {
+        const d = new Date(s.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        if (!salesByDate[d]) {
+          salesByDate[d] = { revenue: 0, units: 0, commission: 0 };
+        }
+        salesByDate[d].revenue += s.finalAmount || 0;
+        salesByDate[d].units += s.quantity || 1;
+        salesByDate[d].commission += s.totalCommission || 0;
+      });
+
+      const actualChartData = Object.keys(salesByDate).map((date) => ({
+        date,
+        ...salesByDate[date],
+      }));
+
+      setChartData(actualChartData);
     } catch (e) {
       console.error("Failed to load dashboard data:", e);
     } finally {

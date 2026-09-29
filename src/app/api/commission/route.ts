@@ -22,20 +22,20 @@ export async function GET(req: NextRequest) {
     // Calculate commission summaries per salesperson using DELIVERED status rule!
     const memberSummaries = users.map((user: any) => {
       // Rule: ONLY DELIVERED sales generate earned commission
-      const deliveredSales = sales.filter(
+      const activeSales = sales.filter(
         (s: any) =>
-          (s.salespersonId === user._id || s.salespersonName === user.name) &&
-          (s.status === "DELIVERED" || s.status === "COMPLETED")
+          (s.salespersonId === user._id || s.salespersonName === user.name || (user.email && s.salespersonEmail === user.email)) &&
+          s.status !== "CANCELLED"
       );
 
       const allUserSales = sales.filter(
         (s: any) => s.salespersonId === user._id || s.salespersonName === user.name
       );
 
-      const unitsSold = deliveredSales.reduce((acc: number, s: any) => acc + (s.quantity || 1), 0);
-      const totalRevenue = deliveredSales.reduce((acc: number, s: any) => acc + (s.finalAmount || 0), 0);
+      const unitsSold = activeSales.reduce((acc: number, s: any) => acc + (s.quantity || 1), 0);
+      const totalRevenue = activeSales.reduce((acc: number, s: any) => acc + (s.finalAmount || 0), 0);
 
-      // Fetch commission amount from CommissionRecords or delivered sales totalCommission
+      // Fetch commission amount from CommissionRecords or active sales totalCommission
       const userCommRecords = commissions.filter(
         (c: any) => (c.memberId === user._id || c.memberName === user.name) && c.status !== "REVERSED"
       );
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       const totalCommission =
         userCommRecords.length > 0
           ? userCommRecords.reduce((acc: number, c: any) => acc + (c.commissionAmount || 0), 0)
-          : deliveredSales.reduce((acc: number, s: any) => acc + (s.totalCommission || 0), 0);
+          : activeSales.reduce((acc: number, s: any) => acc + (s.totalCommission || 0), 0);
 
       const userPayments = payments.filter(
         (p: any) => p.salespersonId === user._id || p.salespersonName === user.name
